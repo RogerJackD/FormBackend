@@ -1,7 +1,7 @@
 import { DataSource } from "typeorm"; // Import explícito
 import { Encargado } from "../entities/encargado.entity";
 import { Instructor } from "../entities/instructor.entity";
-
+import { PermisoInstructor } from "../entities/permiso-instructor.entity"
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -18,6 +18,6 @@ export const AppDataSource = new DataSource({
   ssl: {
     rejectUnauthorized: false,
   },
-  entities: [Encargado, Instructor],
+  entities: [Encargado, Instructor, PermisoInstructor],
   migrations: [],
 });

@@ -1,5 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, OneToMany } from 'typeorm';
 import { Encargado } from './encargado.entity';
+import { PermisoInstructor } from './permiso-instructor.entity';
+
 
 @Entity('instructores') // Nombre exacto de la tabla en la base de datos
 export class Instructor {
@@ -25,4 +27,9 @@ export class Instructor {
   @ManyToOne(() => Encargado, (encargado) => encargado.instructores)
   @JoinColumn({ name: 'encargado_id' }) // Nombre de la columna FK en la tabla
   encargado!: Encargado;
+
+  // Relación One-to-Many con PermisoInstructor 
+  @OneToMany(() => PermisoInstructor, (permiso) => permiso.instructor)
+  permisos!: PermisoInstructor[];
+  
 }
