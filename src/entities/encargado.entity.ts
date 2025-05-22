@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn } f
 import { Instructor } from "./instructor.entity"
 import { PermisoInstructor } from './permiso-instructor.entity';
 import { PermisoMaterial } from './permiso-material.entity';
+import { PermisoAprendiz } from './permiso-aprendiz.entity';
 
 @Entity("encargados") // Nombre exacto de la tabla en PostgreSQL
 export class Encargado {
@@ -29,7 +30,10 @@ export class Encargado {
   // Relación uno-a-muchos con permiso Instructores
   @OneToMany(() => PermisoInstructor, (permiso) => permiso.encargado)
   permisosInstructores!: PermisoInstructor[];
-  // Relación uno-a-muchos con Instructores-material
+  // Relación uno-a-muchos con encargadis-material
   @OneToMany(() => PermisoMaterial, (permiso) => permiso.instructor)
   permisosMateriales!: PermisoMaterial[];
+  // Relación uno-a-muchos con de encargados a permiso aprendices
+  @OneToMany(() => PermisoAprendiz, (permiso) => permiso.encargado)
+  permisosAprendices!: PermisoAprendiz[];
 }

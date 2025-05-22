@@ -5,7 +5,7 @@ import encargadoRoutes from "./routes/encargado.routes";
 import instructorRoutes from "./routes/instructor.routes";
 import permisoInstructorRoutes from "./routes/permiso-instructor.routes"
 import permisoMaterialRoutes from './routes/permiso-material.routes';
-
+import permisoAprendizRoutes from './routes/permiso-aprendiz.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,7 +23,9 @@ AppDataSource.initialize()
     app.use("/api/instructores", instructorRoutes); // Ruta para instructores (nueva)
     app.use('/api/permisos-instructores', permisoInstructorRoutes);
     app.use('/api/permisos-materiales', permisoMaterialRoutes);
+    app.use('/api/permisos-aprendices', permisoAprendizRoutes); 
 
+    
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
