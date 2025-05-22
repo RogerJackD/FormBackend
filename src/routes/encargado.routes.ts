@@ -3,6 +3,6 @@ import { createEncargado } from "../controllers/encargado.controller";
 
 const router = Router();
 
-router.post("/encargados", createEncargado);
+router.post("/", createEncargado);
 
 export default router;

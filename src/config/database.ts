@@ -1,5 +1,7 @@
 import { DataSource } from "typeorm"; // Import explícito
 import { Encargado } from "../entities/encargado.entity";
+import { Instructor } from "../entities/instructor.entity";
+
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -11,11 +13,11 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  synchronize: true,
+  synchronize: false,
   logging: true,
   ssl: {
     rejectUnauthorized: false,
   },
-  entities: [Encargado],
+  entities: [Encargado, Instructor],
   migrations: [],
 });
