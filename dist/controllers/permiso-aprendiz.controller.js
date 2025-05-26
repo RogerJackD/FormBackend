@@ -1,9 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createPermisoAprendiz = void 0;
+exports.deletePermisoAprendiz = exports.updatePermisoAprendiz = exports.getPermisoAprendizporID = exports.getPermisosAprendices = exports.createPermisoAprendiz = void 0;
 const database_1 = require("../config/database");
 const permiso_aprendiz_entity_1 = require("../entities/permiso-aprendiz.entity");
 const encargado_entity_1 = require("../entities/encargado.entity");
+const typeorm_1 = require("typeorm");
 const createPermisoAprendiz = async (req, res) => {
     try {
         const { nombres, apellidos, ocupacion, grupo, programa, motivo, hora_salida, hora_retorno, tiempo_permiso, encargadoId } = req.body;
@@ -55,3 +56,82 @@ const createPermisoAprendiz = async (req, res) => {
     }
 };
 exports.createPermisoAprendiz = createPermisoAprendiz;
+/////////////////////////////////////////////////////////////////////metodo get
+const getPermisosAprendices = async (req, res) => {
+    try {
+        const { id, nombre, fecha } = req.query;
+        const repo = database_1.AppDataSource.getRepository(permiso_aprendiz_entity_1.PermisoAprendiz);
+        const where = {};
+        if (id) {
+            where.id = Number(id);
+        }
+        if (nombre) {
+            where.nombres = (0, typeorm_1.ILike)(`%${nombre}%`);
+        }
+        if (fecha) {
+            const [year, month, day] = fecha.split("-").map(Number);
+            const inicio = new Date(year, month - 1, day, 0, 0, 0, 0);
+            const fin = new Date(year, month - 1, day, 23, 59, 59, 999);
+            where.fechaCreacion = (0, typeorm_1.Between)(inicio, fin);
+        }
+        const permisos = await repo.find({
+            where,
+            order: { fechaCreacion: "DESC" },
+        });
+        return res.json(permisos);
+    }
+    catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Error al filtrar permisos de aprendices" });
+    }
+};
+exports.getPermisosAprendices = getPermisosAprendices;
+// Filtrar Formulario por ID
+const getPermisoAprendizporID = async (req, res) => {
+    const id = Number(req.params.id);
+    // Verifica que sea un número válido
+    if (isNaN(id)) {
+        return res.status(400).json({ message: "ID inválido" });
+    }
+    const repo = database_1.AppDataSource.getRepository(permiso_aprendiz_entity_1.PermisoAprendiz);
+    const permiso = await repo.findOne({ where: { id } });
+    if (!permiso) {
+        return res.status(404).json({ message: "Permiso no encontrado" });
+    }
+    return res.json(permiso);
+};
+exports.getPermisoAprendizporID = getPermisoAprendizporID;
+// Editar un formulario
+const updatePermisoAprendiz = async (req, res) => {
+    const id = Number(req.params.id);
+    const repo = database_1.AppDataSource.getRepository(permiso_aprendiz_entity_1.PermisoAprendiz);
+    let permiso = await repo.findOneBy({ id });
+    if (!permiso) {
+        return res.status(404).json({ message: "Permiso no encontrado" });
+    }
+    // Actualizar campos permitidos
+    repo.merge(permiso, req.body);
+    try {
+        const result = await repo.save(permiso);
+        return res.json({
+            message: "Permiso actualizado correctamente",
+            data: result
+        });
+    }
+    catch (error) {
+        console.error("Error al actualizar:", error);
+        return res.status(500).json({ message: "Error al actualizar permiso" });
+    }
+};
+exports.updatePermisoAprendiz = updatePermisoAprendiz;
+// Eliminar un formulario
+const deletePermisoAprendiz = async (req, res) => {
+    const id = Number(req.params.id);
+    const repo = database_1.AppDataSource.getRepository(permiso_aprendiz_entity_1.PermisoAprendiz);
+    const result = await repo.delete(id);
+    if (result.affected === 0) {
+        return res.status(404).json({ message: "Permiso no encontrado" });
+    }
+    return res.json({ message: "Permiso eliminado correctamente" });
+};
+exports.deletePermisoAprendiz = deletePermisoAprendiz;

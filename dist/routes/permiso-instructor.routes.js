@@ -4,4 +4,8 @@ const express_1 = require("express");
 const permiso_instructor_controller_1 = require("../controllers/permiso-instructor.controller");
 const router = (0, express_1.Router)();
 router.post('/', permiso_instructor_controller_1.createPermisoInstructor);
+router.get('/', permiso_instructor_controller_1.getPermisosInstructores);
+router.get('/:id', permiso_instructor_controller_1.getPermisoInstructorporID);
+router.put('/:id', permiso_instructor_controller_1.updatePermisoInstructor);
+router.delete('/:id', permiso_instructor_controller_1.deletePermisoInstructor);
 exports.default = router;
