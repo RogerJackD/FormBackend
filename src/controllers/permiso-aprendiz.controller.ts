@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { AppDataSource } from '../config/database';
 import { PermisoAprendiz } from '../entities/permiso-aprendiz.entity';
 import { Encargado } from '../entities/encargado.entity';
+import { ILike, Between } from "typeorm";
 
 export const createPermisoAprendiz = async (req: Request, res: Response) => {
   try {
@@ -70,4 +71,97 @@ export const createPermisoAprendiz = async (req: Request, res: Response) => {
       error: error instanceof Error ? error.message : String(error) 
     });
   }
+};
+/////////////////////////////////////////////////////////////////////metodo get
+export const getPermisosAprendices = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const { id, nombre, fecha } = req.query;
+    const repo = AppDataSource.getRepository(PermisoAprendiz);
+
+    const where: any = {};
+
+    if (id) {
+      where.id = Number(id);
+    }
+
+    if (nombre) {
+      where.nombres = ILike(`%${nombre}%`);
+    }
+
+    if (fecha) {
+  const [year, month, day] = (fecha as string).split("-").map(Number);
+  const inicio = new Date(year, month - 1, day, 0, 0, 0, 0);
+  const fin = new Date(year, month - 1, day, 23, 59, 59, 999);
+
+  where.fechaCreacion = Between(inicio, fin);
+}
+
+    const permisos = await repo.find({
+      where,
+      order: { fechaCreacion: "DESC" },
+    });
+
+    return res.json(permisos);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Error al filtrar permisos de aprendices" });
+  }
+};
+
+// Filtrar Formulario por ID
+export const getPermisoAprendizporID = async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+
+  // Verifica que sea un número válido
+  if (isNaN(id)) {
+    return res.status(400).json({ message: "ID inválido" });
+  }
+
+  const repo = AppDataSource.getRepository(PermisoAprendiz);
+  const permiso = await repo.findOne({ where: { id } });
+
+  if (!permiso) {
+    return res.status(404).json({ message: "Permiso no encontrado" });
+  }
+
+  return res.json(permiso);
+};
+
+
+// Editar un formulario
+export const updatePermisoAprendiz = async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const repo = AppDataSource.getRepository(PermisoAprendiz);
+
+  let permiso = await repo.findOneBy({ id });
+  if (!permiso) {
+    return res.status(404).json({ message: "Permiso no encontrado" });
+  }
+
+  // Actualizar campos permitidos
+  repo.merge(permiso, req.body);
+
+  try {
+    const result = await repo.save(permiso);
+    return res.json({
+      message: "Permiso actualizado correctamente",
+      data: result
+    });
+  } catch (error) {
+    console.error("Error al actualizar:", error);
+    return res.status(500).json({ message: "Error al actualizar permiso" });
+  }
+};
+
+// Eliminar un formulario
+export const deletePermisoAprendiz = async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const repo = AppDataSource.getRepository(PermisoAprendiz);
+
+  const result = await repo.delete(id);
+  if (result.affected === 0) {
+    return res.status(404).json({ message: "Permiso no encontrado" });
+  }
+
+  return res.json({ message: "Permiso eliminado correctamente" });
 };

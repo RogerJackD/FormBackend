@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { AppDataSource } from '../config/database';
 import { Instructor } from '../entities/instructor.entity';
 import { Encargado } from '../entities/encargado.entity';
+import { ILike } from "typeorm";
+
 
 export const createInstructor = async (req: Request, res: Response) => {
   try {
@@ -44,5 +46,45 @@ export const createInstructor = async (req: Request, res: Response) => {
       message: 'Error interno del servidor',
       error: error instanceof Error ? error.message : String(error) 
     });
+  }
+};
+
+export const getInstructores = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const instructorRepository = AppDataSource.getRepository(Instructor);
+
+    const instructores = await instructorRepository.find();
+
+    return res.json(instructores);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Error al obtener instructores" });
+  }
+};
+
+//////////////////autocompletar instructores
+export const autocompletarInstructores = async (req: Request, res: Response) => {
+  try {
+    const query = req.query.query as string;
+
+    if (!query) {
+      return res.status(400).json({ message: 'Se requiere una cadena de búsqueda' });
+    }
+
+    const repo = AppDataSource.getRepository(Instructor);
+
+    const resultados = await repo
+      .createQueryBuilder('instructor')
+      .where('instructor.nombre ILIKE :query', { query: `${query}%` })
+      .orWhere('instructor.apellidos ILIKE :query', { query: `${query}%` })
+      .orWhere('CAST(instructor.idSenati AS TEXT) ILIKE :query', { query: `${query}%` })
+      .orderBy('instructor.apellidos', 'ASC')
+      .limit(10)
+      .getMany();
+
+    res.json(resultados);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error al buscar instructores' });
   }
 };
