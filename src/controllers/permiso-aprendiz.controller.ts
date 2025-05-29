@@ -3,6 +3,7 @@ import { AppDataSource } from '../config/database';
 import { PermisoAprendiz } from '../entities/permiso-aprendiz.entity';
 import { Encargado } from '../entities/encargado.entity';
 import { ILike, Between } from "typeorm";
+import { formatearFecha } from '../utils/formatFecha';
 
 export const createPermisoAprendiz = async (req: Request, res: Response) => {
   try {
@@ -75,7 +76,7 @@ export const createPermisoAprendiz = async (req: Request, res: Response) => {
 /////////////////////////////////////////////////////////////////////metodo get
 export const getPermisosAprendices = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const { id, nombre, fecha } = req.query;
+    const { id, nombre, fecha, anulado } = req.query;
     const repo = AppDataSource.getRepository(PermisoAprendiz);
 
     const where: any = {};
@@ -96,12 +97,25 @@ export const getPermisosAprendices = async (req: Request, res: Response): Promis
   where.fechaCreacion = Between(inicio, fin);
 }
 
+    // Por defecto muestra permisos no anulados, query ?anulado='true' para ver solo los permisos anulados
+    if (anulado === 'true') {
+      where.anulado = true;
+    } else {
+      where.anulado = false;
+    }
+
     const permisos = await repo.find({
       where,
       order: { fechaCreacion: "DESC" },
     });
 
-    return res.json(permisos);
+    const permisosFormateados = permisos.map(p => ({
+  ...p,
+  fechaCreacion: formatearFecha(p.fechaCreacion)
+}));
+
+return res.json(permisosFormateados);
+
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Error al filtrar permisos de aprendices" });
@@ -124,9 +138,11 @@ export const getPermisoAprendizporID = async (req: Request, res: Response) => {
     return res.status(404).json({ message: "Permiso no encontrado" });
   }
 
-  return res.json(permiso);
+  return res.json({
+  ...permiso,
+  fechaCreacion: formatearFecha(permiso.fechaCreacion)
+});
 };
-
 
 // Editar un formulario
 export const updatePermisoAprendiz = async (req: Request, res: Response) => {
@@ -150,6 +166,48 @@ export const updatePermisoAprendiz = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Error al actualizar:", error);
     return res.status(500).json({ message: "Error al actualizar permiso" });
+  }
+};
+
+// Soft delete con PATCH
+export const softDeletePermisoAprendiz = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const id = Number(req.params.id);
+    const repo = AppDataSource.getRepository(PermisoAprendiz);
+
+    const permiso = await repo.findOne({ where: { id } });
+
+    if (!permiso) {
+      return res.status(404).json({ message: 'Permiso no encontrado' });
+    }
+
+    permiso.anulado = true;
+    await repo.save(permiso);
+
+    return res.json({ message: 'Permiso marcado como anulado' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Error al marcar como eliminado' });
+  }
+};
+
+// Restaurar un soft delete con PATCH
+export const restaurarPermisoAprendiz = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const id = Number(req.params.id);
+    const repo = AppDataSource.getRepository(PermisoAprendiz);
+
+    const permiso = await repo.findOne({ where: { id } });
+
+    if (!permiso) {
+      return res.status(404).json({ message: 'Permiso no encontrado' });
+    }
+
+    permiso.anulado = false;
+    await repo.save(permiso);
+
+    return res.json({ message: 'Permiso restaurado exitosamente' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Error al revertir el anulado' });
   }
 };
 

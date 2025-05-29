@@ -52,6 +52,10 @@ __decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'fecha_creacion', type: 'timestamp' }),
     __metadata("design:type", Date)
 ], PermisoMaterial.prototype, "fechaCreacion", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'boolean', default: false }),
+    __metadata("design:type", Boolean)
+], PermisoMaterial.prototype, "anulado", void 0);
 exports.PermisoMaterial = PermisoMaterial = __decorate([
     (0, typeorm_1.Entity)('permiso_materiales')
 ], PermisoMaterial);

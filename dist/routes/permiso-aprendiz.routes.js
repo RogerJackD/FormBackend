@@ -7,5 +7,7 @@ router.post('/', permiso_aprendiz_controller_1.createPermisoAprendiz);
 router.get("/", permiso_aprendiz_controller_1.getPermisosAprendices);
 router.get('/:id', permiso_aprendiz_controller_1.getPermisoAprendizporID); // Para el filtrado de formulario
 router.put('/:id', permiso_aprendiz_controller_1.updatePermisoAprendiz); // Para editar un formulario
+router.patch('/anular/:id', permiso_aprendiz_controller_1.softDeletePermisoAprendiz); // Soft delete
+router.patch('/desanular/:id', permiso_aprendiz_controller_1.restaurarPermisoAprendiz); // Revertir soft delete
 router.delete('/:id', permiso_aprendiz_controller_1.deletePermisoAprendiz); // para eliminar un formulario
 exports.default = router;

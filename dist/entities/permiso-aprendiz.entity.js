@@ -64,6 +64,10 @@ __decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'fecha_creacion', type: 'timestamp' }),
     __metadata("design:type", Date)
 ], PermisoAprendiz.prototype, "fechaCreacion", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'boolean', default: false }),
+    __metadata("design:type", Boolean)
+], PermisoAprendiz.prototype, "anulado", void 0);
 exports.PermisoAprendiz = PermisoAprendiz = __decorate([
     (0, typeorm_1.Entity)('permiso_aprendices')
 ], PermisoAprendiz);

@@ -3,6 +3,7 @@ import { AppDataSource } from '../config/database';
 import { PermisoInstructor } from '../entities/permiso-instructor.entity';
 import { Instructor } from '../entities/instructor.entity';
 import { Encargado } from '../entities/encargado.entity';
+import { formatearFecha } from '../utils/formatFecha';
 import { ILike, Between } from "typeorm";
 
 export const createPermisoInstructor = async (req: Request, res: Response) => {
@@ -67,9 +68,12 @@ export const createPermisoInstructor = async (req: Request, res: Response) => {
     await permisoRepository.save(nuevoPermiso);
 
     return res.status(201).json({
-      message: 'Permiso creado exitosamente',
-      data: nuevoPermiso
-    });
+  message: 'Permiso creado exitosamente',
+  data: {
+    ...nuevoPermiso,
+    fechaCreacion: formatearFecha(nuevoPermiso.fechaCreacion)
+  }
+});
 
     
 
@@ -85,7 +89,7 @@ export const createPermisoInstructor = async (req: Request, res: Response) => {
 //Obtener los registros de permiso de intructores
 export const getPermisosInstructores = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const { id_senati, apellidos, fecha } = req.query;
+    const { id_senati, apellidos, fecha, anulado } = req.query;
     const repo = AppDataSource.getRepository(PermisoInstructor);
 
     const where: any = {};
@@ -107,13 +111,25 @@ export const getPermisosInstructores = async (req: Request, res: Response): Prom
       where.fechaCreacion = Between(inicio, fin);
     }
 
+    // Por defecto muestra permisos no anulados, query ?anulado='true' para ver solo los permisos anulados
+    if (anulado === 'true') {
+      where.anulado = true;
+    } else {
+      where.anulado = false;
+    }
+
     const permisos = await repo.find({
       where,
       relations: ['instructor', 'encargado'],
       order: { fechaCreacion: "DESC" },
     });
 
-    return res.json(permisos);
+    const permisosFormateados = permisos.map(p => ({
+  ...p,
+  fechaCreacion: formatearFecha(p.fechaCreacion)
+}));
+
+return res.json(permisosFormateados);
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Error al obtener permisos de instructores" });
@@ -134,7 +150,10 @@ export const getPermisoInstructorporID = async (req: Request, res: Response) => 
       return res.status(404).json({ message: 'Permiso no encontrado' });
     }
 
-    return res.json(permiso);
+    return res.json({
+  ...permiso,
+  fechaCreacion: formatearFecha(permiso.fechaCreacion)
+});
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: 'Error al obtener permiso' });
@@ -182,14 +201,62 @@ export const updatePermisoInstructor = async (req: Request, res: Response) => {
     }
 
     await repo.save(permiso);
-    return res.json({ message: 'Permiso actualizado', data: permiso });
+    return res.json({
+  message: 'Permiso actualizado',
+  data: {
+    ...permiso,
+    fechaCreacion: formatearFecha(permiso.fechaCreacion)
+  }
+});
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: 'Error al actualizar permiso' });
   }
 };
 
-// Eliminar permiso por ID
+// Soft delete con PATCH
+export const softDeletePermisoInstructor = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const id = Number(req.params.id);
+    const repo = AppDataSource.getRepository(PermisoInstructor);
+
+    const permiso = await repo.findOne({ where: { id } });
+
+    if (!permiso) {
+      return res.status(404).json({ message: 'Permiso no encontrado' });
+    }
+
+    permiso.anulado = true;
+    await repo.save(permiso);
+
+    return res.json({ message: 'Permiso marcado como anulado' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Error al marcar como eliminado' });
+  }
+};
+
+// Restaurar un soft delete con PATCH
+export const restaurarPermisoInstructor = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const id = Number(req.params.id);
+    const repo = AppDataSource.getRepository(PermisoInstructor);
+
+    const permiso = await repo.findOne({ where: { id } });
+
+    if (!permiso) {
+      return res.status(404).json({ message: 'Permiso no encontrado' });
+    }
+
+    permiso.anulado = false;
+    await repo.save(permiso);
+
+    return res.json({ message: 'Permiso restaurado exitosamente' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Error al revertir el anulado' });
+  }
+};
+
+// Eliminar permiso por ID (NO RECOMENDADO, USAR SOFT DELETE)
 export const deletePermisoInstructor = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {

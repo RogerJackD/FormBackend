@@ -1,10 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deletePermisoAprendiz = exports.updatePermisoAprendiz = exports.getPermisoAprendizporID = exports.getPermisosAprendices = exports.createPermisoAprendiz = void 0;
+exports.deletePermisoAprendiz = exports.restaurarPermisoAprendiz = exports.softDeletePermisoAprendiz = exports.updatePermisoAprendiz = exports.getPermisoAprendizporID = exports.getPermisosAprendices = exports.createPermisoAprendiz = void 0;
 const database_1 = require("../config/database");
 const permiso_aprendiz_entity_1 = require("../entities/permiso-aprendiz.entity");
 const encargado_entity_1 = require("../entities/encargado.entity");
 const typeorm_1 = require("typeorm");
+const formatFecha_1 = require("../utils/formatFecha");
 const createPermisoAprendiz = async (req, res) => {
     try {
         const { nombres, apellidos, ocupacion, grupo, programa, motivo, hora_salida, hora_retorno, tiempo_permiso, encargadoId } = req.body;
@@ -59,7 +60,7 @@ exports.createPermisoAprendiz = createPermisoAprendiz;
 /////////////////////////////////////////////////////////////////////metodo get
 const getPermisosAprendices = async (req, res) => {
     try {
-        const { id, nombre, fecha } = req.query;
+        const { id, nombre, fecha, anulado } = req.query;
         const repo = database_1.AppDataSource.getRepository(permiso_aprendiz_entity_1.PermisoAprendiz);
         const where = {};
         if (id) {
@@ -74,11 +75,22 @@ const getPermisosAprendices = async (req, res) => {
             const fin = new Date(year, month - 1, day, 23, 59, 59, 999);
             where.fechaCreacion = (0, typeorm_1.Between)(inicio, fin);
         }
+        // Por defecto muestra permisos no anulados, query ?anulado='true' para ver solo los permisos anulados
+        if (anulado === 'true') {
+            where.anulado = true;
+        }
+        else {
+            where.anulado = false;
+        }
         const permisos = await repo.find({
             where,
             order: { fechaCreacion: "DESC" },
         });
-        return res.json(permisos);
+        const permisosFormateados = permisos.map(p => ({
+            ...p,
+            fechaCreacion: (0, formatFecha_1.formatearFecha)(p.fechaCreacion)
+        }));
+        return res.json(permisosFormateados);
     }
     catch (error) {
         console.error(error);
@@ -98,7 +110,10 @@ const getPermisoAprendizporID = async (req, res) => {
     if (!permiso) {
         return res.status(404).json({ message: "Permiso no encontrado" });
     }
-    return res.json(permiso);
+    return res.json({
+        ...permiso,
+        fechaCreacion: (0, formatFecha_1.formatearFecha)(permiso.fechaCreacion)
+    });
 };
 exports.getPermisoAprendizporID = getPermisoAprendizporID;
 // Editar un formulario
@@ -124,6 +139,42 @@ const updatePermisoAprendiz = async (req, res) => {
     }
 };
 exports.updatePermisoAprendiz = updatePermisoAprendiz;
+// Soft delete con PATCH
+const softDeletePermisoAprendiz = async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        const repo = database_1.AppDataSource.getRepository(permiso_aprendiz_entity_1.PermisoAprendiz);
+        const permiso = await repo.findOne({ where: { id } });
+        if (!permiso) {
+            return res.status(404).json({ message: 'Permiso no encontrado' });
+        }
+        permiso.anulado = true;
+        await repo.save(permiso);
+        return res.json({ message: 'Permiso marcado como anulado' });
+    }
+    catch (error) {
+        return res.status(500).json({ message: 'Error al marcar como eliminado' });
+    }
+};
+exports.softDeletePermisoAprendiz = softDeletePermisoAprendiz;
+// Restaurar un soft delete con PATCH
+const restaurarPermisoAprendiz = async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        const repo = database_1.AppDataSource.getRepository(permiso_aprendiz_entity_1.PermisoAprendiz);
+        const permiso = await repo.findOne({ where: { id } });
+        if (!permiso) {
+            return res.status(404).json({ message: 'Permiso no encontrado' });
+        }
+        permiso.anulado = false;
+        await repo.save(permiso);
+        return res.json({ message: 'Permiso restaurado exitosamente' });
+    }
+    catch (error) {
+        return res.status(500).json({ message: 'Error al revertir el anulado' });
+    }
+};
+exports.restaurarPermisoAprendiz = restaurarPermisoAprendiz;
 // Eliminar un formulario
 const deletePermisoAprendiz = async (req, res) => {
     const id = Number(req.params.id);

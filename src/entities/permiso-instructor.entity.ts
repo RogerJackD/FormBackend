@@ -40,4 +40,7 @@ export class PermisoInstructor {
 
   @CreateDateColumn({ name: 'fecha_creacion', type: 'timestamp' })
   fechaCreacion!: Date;
+
+  @Column({ type: 'boolean', default: false })
+  anulado!: boolean;
 }

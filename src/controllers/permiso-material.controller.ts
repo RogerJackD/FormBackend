@@ -4,20 +4,20 @@ import { PermisoMaterial } from '../entities/permiso-material.entity';
 import { Instructor } from '../entities/instructor.entity';
 import { Encargado } from '../entities/encargado.entity';
 import { ILike, Between } from "typeorm";
+import { formatearFecha } from '../utils/formatFecha';
 
-
+// Crear permiso
 export const createPermisoMaterial = async (req: Request, res: Response) => {
   try {
     const { 
       nombre_aprendiz,
       accion,
       detalle_accion,
-      id_senati,  // Campo opcional
+      id_senati,
       nombre_señor,
-      encargadoId // Campo obligatorio
+      encargadoId
     } = req.body;
 
-    // Validación de campos obligatorios
     if (!accion || !encargadoId) {
       return res.status(400).json({
         message: 'Faltan campos obligatorios: accion, encargadoId' 
@@ -31,7 +31,6 @@ export const createPermisoMaterial = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Encargado no encontrado' });
     }
 
-    // Validación opcional: Si se envía id_senati, debe existir en Instructores
     let instructor: Instructor | null = null;
     if (id_senati) {
       const instructorRepository = AppDataSource.getRepository(Instructor);
@@ -46,9 +45,9 @@ export const createPermisoMaterial = async (req: Request, res: Response) => {
       nombre_aprendiz,
       accion,
       detalle_accion: detalle_accion || null,
-      instructor: instructor || undefined,  // Puede ser null
+      instructor: instructor || undefined,
       nombre_señor,
-      encargado,   // Obligatorio
+      encargado,
       fechaCreacion: new Date()
     });
 
@@ -56,7 +55,10 @@ export const createPermisoMaterial = async (req: Request, res: Response) => {
 
     return res.status(201).json({
       message: 'Permiso de materiales creado exitosamente',
-      data: nuevoPermiso
+      data: {
+        ...nuevoPermiso,
+        fechaCreacion: formatearFecha(nuevoPermiso.fechaCreacion)
+      }
     });
 
   } catch (error) {
@@ -67,37 +69,21 @@ export const createPermisoMaterial = async (req: Request, res: Response) => {
     });
   }
 };
-//Obtener los registros de permiso de ingreso o salida de material
 
+// Obtener todos los permisos (con filtros)
 export const getPermisosMaterial = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const { id, nombre_aprendiz, nombre_señor, accion, id_senati, fecha } = req.query;
+    const { id, nombre_aprendiz, nombre_señor, accion, id_senati, fecha, anulado } = req.query;
     const repo = AppDataSource.getRepository(PermisoMaterial);
-
     const where: any = {};
 
-    if (id) {
-      where.id = Number(id);
-    }
-
-    if (nombre_aprendiz) {
-      where.nombre_aprendiz = ILike(`%${nombre_aprendiz}%`);
-    }
-
-    if (nombre_señor) {
-      where.nombre_señor = ILike(`%${nombre_señor}%`);
-    }
-
-    if (accion) {
-      where.accion = ILike(`%${accion}%`);
-    }
-
+    if (id) where.id = Number(id);
+    if (nombre_aprendiz) where.nombre_aprendiz = ILike(`%${nombre_aprendiz}%`);
+    if (nombre_señor) where.nombre_señor = ILike(`%${nombre_señor}%`);
+    if (accion) where.accion = ILike(`%${accion}%`);
     if (id_senati) {
-      where.instructor = {
-        idSenati: Number(id_senati),
-      };
+      where.instructor = { idSenati: Number(id_senati) };
     }
-
     if (fecha) {
       const [year, month, day] = (fecha as string).split("-").map(Number);
       const inicio = new Date(year, month - 1, day, 0, 0, 0, 0);
@@ -105,34 +91,55 @@ export const getPermisosMaterial = async (req: Request, res: Response): Promise<
       where.fechaCreacion = Between(inicio, fin);
     }
 
+    // Por defecto muestra permisos no anulados, query ?anulado='true' para ver solo los permisos anulados
+    if (anulado === 'true') {
+      where.anulado = true;
+    } else {
+      where.anulado = false;
+    }
+
     const permisos = await repo.find({
       where,
-      order: { fechaCreacion: "DESC" },
+      relations: ['instructor', 'encargado'],
+      order: { fechaCreacion: "DESC" }
     });
 
-    return res.json(permisos);
+    const permisosFormateados = permisos.map(p => ({
+      ...p,
+      fechaCreacion: formatearFecha(p.fechaCreacion)
+    }));
+
+    return res.json(permisosFormateados);
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Error al obtener permisos de materiales" });
   }
 };
 
+// Obtener uno por ID
 export const getPermisoMaterialporID = async (req: Request, res: Response): Promise<Response> => {
   try {
     const id = Number(req.params.id);
     const repo = AppDataSource.getRepository(PermisoMaterial);
-    const permiso = await repo.findOne({ where: { id } });
+    const permiso = await repo.findOne({
+      where: { id },
+      relations: ['instructor', 'encargado']
+    });
 
     if (!permiso) {
       return res.status(404).json({ message: 'Permiso no encontrado' });
     }
 
-    return res.json(permiso);
+    return res.json({
+      ...permiso,
+      fechaCreacion: formatearFecha(permiso.fechaCreacion)
+    });
   } catch (error) {
     return res.status(500).json({ message: 'Error al obtener permiso' });
   }
 };
 
+// Actualizar permiso
 export const updatePermisoMaterial = async (req: Request, res: Response): Promise<Response> => {
   try {
     const id = Number(req.params.id);
@@ -152,7 +159,6 @@ export const updatePermisoMaterial = async (req: Request, res: Response): Promis
       encargadoId
     } = req.body;
 
-    // Actualización básica
     if (nombre_aprendiz !== undefined) permiso.nombre_aprendiz = nombre_aprendiz;
     if (accion !== undefined) permiso.accion = accion;
     if (detalle_accion !== undefined) permiso.detalle_accion = detalle_accion;
@@ -173,12 +179,61 @@ export const updatePermisoMaterial = async (req: Request, res: Response): Promis
     }
 
     await repo.save(permiso);
-    return res.json({ message: 'Permiso actualizado', data: permiso });
+    return res.json({
+      message: 'Permiso actualizado',
+      data: {
+        ...permiso,
+        fechaCreacion: formatearFecha(permiso.fechaCreacion)
+      }
+    });
   } catch (error) {
     return res.status(500).json({ message: 'Error al actualizar permiso' });
   }
 };
 
+// Soft delete con PATCH
+export const softDeletePermisoMaterial = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const id = Number(req.params.id);
+    const repo = AppDataSource.getRepository(PermisoMaterial);
+
+    const permiso = await repo.findOne({ where: { id } });
+
+    if (!permiso) {
+      return res.status(404).json({ message: 'Permiso no encontrado' });
+    }
+
+    permiso.anulado = true;
+    await repo.save(permiso);
+
+    return res.json({ message: 'Permiso marcado como anulado' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Error al marcar como eliminado' });
+  }
+};
+
+// Restaurar un soft delete con PATCH
+export const restaurarPermisoMaterial = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const id = Number(req.params.id);
+    const repo = AppDataSource.getRepository(PermisoMaterial);
+
+    const permiso = await repo.findOne({ where: { id } });
+
+    if (!permiso) {
+      return res.status(404).json({ message: 'Permiso no encontrado' });
+    }
+
+    permiso.anulado = false;
+    await repo.save(permiso);
+
+    return res.json({ message: 'Permiso restaurado exitosamente' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Error al revertir el anulado' });
+  }
+};
+
+// Eliminar permiso
 export const deletePermisoMaterial = async (req: Request, res: Response): Promise<Response> => {
   try {
     const id = Number(req.params.id);
@@ -195,3 +250,4 @@ export const deletePermisoMaterial = async (req: Request, res: Response): Promis
     return res.status(500).json({ message: 'Error al eliminar permiso' });
   }
 };
+
